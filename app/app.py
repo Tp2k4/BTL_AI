@@ -8,9 +8,9 @@ from tensorflow.keras.models import load_model
 from collections import deque
 
 # Load models
-eye_model = load_model("E:/AI/BTL_AI/model/eye_state_model.h5")
-emotion_model = load_model("E:/AI/BTL_AI/model/emotion_model.keras")
-age_gender_model = load_model("E:/AI/BTL_AI/model/age_gender_model.h5", compile=False)
+eye_model = load_model("model/eye_state_model.h5")
+emotion_model = load_model("model/emotion_model.keras")
+age_gender_model = load_model("model/age_gender_model.h5", compile=False)
 
 # Queues
 eye_queue = queue.Queue(maxsize=2)
