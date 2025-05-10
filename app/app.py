@@ -10,7 +10,8 @@ from collections import deque
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
-age_gender_model = load_model("model/age_gender_model.h5", compile=False)
+age_model = load_model("model/age_model.keras")
+gender_model = load_model("model/age_gender_model.h5", compile=False)
 
 # Queues
 eye_queue = queue.Queue(maxsize=2)
@@ -18,6 +19,8 @@ eye_result_queue = queue.Queue(maxsize=2)
 emotion_queue = queue.Queue(maxsize=1)
 emotion_result_queue = queue.Queue(maxsize=1)
 speech_queue = queue.Queue()
+gender_queue = queue.Queue(maxsize=1)
+gender_result_queue = queue.Queue(maxsize=1)
 
 # Mediapipe
 mp_face = mp.solutions.face_mesh
@@ -113,20 +116,44 @@ def emotion_predict_thread():
         except:
             emotion_result_queue.put("Neutral")
 
-# [7. Hàm dự đoán tuổi và giới tính] 
-def predict_age_gender(face_img):
+# [7. Hàm dự đoán tuổi] 
+def predict_age(face_img):
     resized = cv2.resize(face_img, (100, 100)) / 255.0
     input_img = resized.reshape(1, 100, 100, 3)
-    age_pred, gender_pred = age_gender_model.predict(input_img, verbose=0)
+    age_pred, gender_pred = gender_model.predict(input_img, verbose=0)
     age = int(np.round(age_pred[0][0]))
     age_range = f"{max(age - 3, 0)} - {age + 3}"
     gender = "Male" if gender_pred[0][0] > 0.5 else "Female"
     return age_range, gender
 
+# [7. Hàm dự đoán giới tính] 
+def predict_gender(face_img):
+    resized = cv2.resize(face_img, (100, 100)) / 255.0
+    input_img = resized.reshape(1, 100, 100, 3)
+    gender_pred = gender_model.predict(input_img, verbose=0)
+    gender = "Male" if gender_pred[0][0] > 0.5 else "Female"
+    return gender
+
+
+def gender_predict_thread():
+    while True:
+        face_img = gender_queue.get()
+        if face_img is None:
+            break
+        try:
+            gender = predict_gender(face_img)
+            gender_result_queue.put(gender)
+        except:
+            gender_result_queue.put("Unknown")
+
+
+
 # [8. Khởi động các luồng xử lý đa nhiệm] 
 threading.Thread(target=speech_loop, daemon=True).start()
 threading.Thread(target=eye_predict_thread, daemon=True).start()
 threading.Thread(target=emotion_predict_thread, daemon=True).start()
+threading.Thread(target=gender_predict_thread, daemon=True).start()
+
 
 # [9. Bắt đầu camera và xử lý khung hình chính] 
 cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -136,8 +163,10 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 last_emotion_time = 0
 emotion_interval = 1.0
 
-last_age_gender_time = 0
-age_gender_interval = 5.0
+last_gender_time = 0
+last_age_time = 0
+age_interval = 5.0
+gender_interval = 5.0
 
 while True:
     ret, frame = cap.read()
@@ -176,18 +205,27 @@ while True:
                 if not emotion_queue.full():
                     emotion_queue.put(face_crop)
 
-            if (time.time() - last_age_gender_time) > age_gender_interval:
-                try:
-                    current_age, current_gender = predict_age_gender(face_crop)
-                    last_age_gender_time = time.time()
-                except:
-                    current_age, current_gender = "?", "?"
+            if (time.time() - last_age_time) > age_interval:
+                current_age = predict_age(face_crop)
+                last_age_time = time.time()
+                
+
+            if (time.time() - last_gender_time) > gender_interval:
+                last_gender_time = time.time()
+                if not gender_queue.full():
+                    gender_queue.put(face_crop)
+
+                
+
 
     # [10. Nhận kết quả và cập nhật trạng thái hệ thống] 
     handle_eye_state()  # Chỉ gọi hàm đã tối ưu
 
     if not emotion_result_queue.empty():
         current_emotion = emotion_result_queue.get()
+
+    if not gender_result_queue.empty():
+        current_gender = gender_result_queue.get()
 
     # [11. Hiển thị lên khung hình]
     cv2.putText(frame, f"Eye: {current_eye_state}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
@@ -207,3 +245,4 @@ cv2.destroyAllWindows()
 speech_queue.put(None)
 eye_queue.put(None)
 emotion_queue.put(None)
+gender_queue.put(None)
