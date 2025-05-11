@@ -71,6 +71,7 @@ def predict_age(face_img):
         age_pred = age_model.predict(input_img, verbose=0)
 
         predicted_age = age_pred[0][0]
+        predicted_age = predicted_age * 116
         # In 30 xác suất cao nhất
         margin = 5  # Sai số dự kiến, bạn có thể điều chỉnh dựa trên MAE thực tế
 

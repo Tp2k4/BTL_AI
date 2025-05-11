@@ -3,12 +3,63 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dense, Dropout, BatchNormalization, GlobalAveragePooling2D, Flatten
 from tensorflow.keras import regularizers
+from tensorflow.keras.callbacks import EarlyStopping
 from utils.process_age_dataset import process_age_dataset  # Hàm xử lý dữ liệu tuổi
 
 # Lấy tập dữ liệu đã được xử lí (tuổi)
 X_train, X_test, y_train, y_test = process_age_dataset()
+
+# Scale các kết quả về khoảng để mô hình học hiệu quả [0,1], do tuổi lớn nhất trong tập là 116 tuổi
+MAX_AGE = 116.0
+y_train_normalize = y_train / MAX_AGE
+y_test_normalize = y_test / MAX_AGE
+    
+
+def generate_model1():
+    model = Sequential()
+
+    # Block 1: 32 filters
+    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', 
+                     input_shape=(128, 128, 3), 
+                     kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((2, 2)))
+
+    # Block 2: 64 filters
+    model.add(Conv2D(64, (3, 3), activation='relu', padding='same', 
+                     kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((2, 2)))
+
+    # Block 3: 128 filters
+    model.add(Conv2D(128, (3, 3), activation='relu', padding='same', 
+                     kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((2, 2)))
+
+    # Block 4: 256 filters
+    model.add(Conv2D(256, (3, 3), activation='relu', padding='same', 
+                     kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((2, 2)))
+
+    # Block 5: 512 filters
+    model.add(Conv2D(512, (3, 3), activation='relu', padding='same', 
+                     kernel_regularizer=regularizers.l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(MaxPooling2D((2, 2)))
+
+
+    model.add(GlobalAveragePooling2D())
+    model.add(Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.01)))
+    model.add(Dropout(0.6))
+    model.add(Dense(1, activation='linear')) 
+
+    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
+    return model
+
 
 def generate_model():
     model = Sequential()
@@ -41,19 +92,22 @@ def generate_model():
 
     return model
 
+
+early_stop = EarlyStopping(patience=5, restore_best_weights=True)
 model = generate_model()
 
-history = model.fit(
-    X_train, y_train,
-    epochs=20,
+model.fit(
+    X_train, y_train_normalize, 
     batch_size=32,
-    validation_data=(X_test, y_test)
+    epochs=20,
+    validation_data=(X_test, y_test_normalize),
+    callbacks=[early_stop]
 )
 
 # Đánh giá mô hình trên tập test
-loss, mae = model.evaluate(X_test, y_test)
-print(f'Mean Squared Error trên tập test: {loss:.4f}')
-print(f'Mean Absolute Error trên tập test: {mae:.4f}')
+mse, mae = model.evaluate(X_test, y_test_normalize)
+print(f'MAE: {mae * MAX_AGE:.2f}')
+print(f'MSE: {mse * (MAX_AGE ** 2):.2f}')
 
 # Lưu mô hình dự đoán tuổi
 model.save("model/age_model.h5")

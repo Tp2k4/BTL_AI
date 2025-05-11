@@ -15,7 +15,7 @@ from utils.select_image_file import select_image_file
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
-age_model = load_model("model/eye_state_model.h5", compile=False)
+age_model = load_model("model/eye_state_model.h5")
 gender_model = load_model("model/gender_model.h5")
 
 # Queues
@@ -26,6 +26,8 @@ emotion_result_queue = queue.Queue(maxsize=1)
 speech_queue = queue.Queue()
 gender_queue = queue.Queue(maxsize=1)
 gender_result_queue = queue.Queue(maxsize=1)
+age_queue = queue.Queue(maxsize=1)
+age_result_queue = queue.Queue(maxsize=1)
 
 # Mediapipe
 # Trả về một module có chứa các lớp và hàm liên quan đến việc xử lý khuôn mặt
@@ -125,14 +127,45 @@ def emotion_predict_thread():
             emotion_result_queue.put("Neutral")
 
 # [7. Hàm dự đoán tuổi] 
+
 def predict_age(face_img):
-    resized = cv2.resize(face_img, (100, 100)) / 255.0
-    input_img = resized.reshape(1, 100, 100, 3)
-    age_pred, gender_pred = gender_model.predict(input_img, verbose=0)
-    age = int(np.round(age_pred[0][0]))
-    age_range = f"{max(age - 3, 0)} - {age + 3}"
-    gender = "Male" if gender_pred[0][0] > 0.5 else "Female"
-    return age_range, gender
+    try:
+        if face_img.size == 0:
+            return "Unknown"
+        resized = cv2.resize(face_img, (128, 128)) / 255.0
+        input_img = resized.reshape(1, 128, 128, 3)
+        age_pred = age_model.predict(input_img, verbose=0)
+
+        predicted_age = age_pred[0][0]
+        predicted_age = predicted_age * 116
+        # In 30 xác suất cao nhất
+        margin = 5  # Sai số dự kiến, bạn có thể điều chỉnh dựa trên MAE thực tế
+
+        age_min = max(0, int(predicted_age - margin))
+        age_max = int(predicted_age + margin)
+
+        print(f"Predicted age range: {age_min} - {age_max}")
+        return f"{age_min} - {age_max}"
+    
+    except Exception as e:
+        print(f"Lỗi dự đoán tuổi: {e}")
+        return "Unknown"
+    
+
+def age_predict_thread():
+    while True:
+        face_img = age_queue.get()
+        if face_img is None:
+            break
+        try:
+            age = predict_age(face_img)
+            age_result_queue.put(age)
+        except Exception as e:
+            print(f"Lỗi trong thread dự đoán tuổi: {e}")
+            age_result_queue.put("Unknown")
+
+    age_result_queue.put(None)
+
 
 # [7. Hàm dự đoán giới tính] 
 def predict_gender(face_img):
@@ -182,6 +215,7 @@ threading.Thread(target=speech_loop, daemon=True).start()
 threading.Thread(target=eye_predict_thread, daemon=True).start()
 threading.Thread(target=emotion_predict_thread, daemon=True).start()
 threading.Thread(target=gender_predict_thread, daemon=True).start()
+threading.Thread(target=age_predict_thread, daemon=True).start()
 
 
 # [9. Bắt đầu camera và xử lý khung hình chính] 
@@ -235,8 +269,9 @@ while True:
                     emotion_queue.put(face_crop)
 
             if (time.time() - last_age_time) > age_interval:
-                current_age = predict_age(face_crop)
                 last_age_time = time.time()
+                if not age_queue.full():
+                    age_queue.put(face_crop)
                 
 
             if (time.time() - last_gender_time) > gender_interval:
@@ -252,6 +287,9 @@ while True:
 
     if not gender_result_queue.empty():
         current_gender = gender_result_queue.get()
+
+    if not age_result_queue.empty():
+        current_age = age_result_queue.get()
 
     # [11. Hiển thị lên khung hình]
     cv2.putText(frame, f"Eye: {current_eye_state}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
