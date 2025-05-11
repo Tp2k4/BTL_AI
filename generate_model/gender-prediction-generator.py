@@ -52,4 +52,4 @@ history = model.fit(
 loss, acc = model.evaluate(X_test, y_test)
 print('Độ chính xác trên tập test:', acc)
 
-model.save("model/gender_model.keras")
+model.save("model/gender_model.h5")

@@ -16,7 +16,7 @@ from utils.select_image_file import select_image_file
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
 age_model = load_model("model/eye_state_model.h5", compile=False)
-gender_model = load_model("model/gender_model.keras")
+gender_model = load_model("model/gender_model.h5")
 
 # Queues
 eye_queue = queue.Queue(maxsize=2)
