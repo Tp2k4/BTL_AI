@@ -15,7 +15,7 @@ from collections import deque
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
-age_model = load_model("model/eye_state_model.h5", compile=False)
+age_model = load_model("model/age_model.h5", compile=False)
 gender_model = load_model("model/gender_model.h5")
 
 # Queues
@@ -126,8 +126,8 @@ def emotion_predict_thread():
 
 # [7. Hàm dự đoán tuổi] 
 def predict_age(face_img):
-    resized = cv2.resize(face_img, (100, 100)) / 255.0
-    input_img = resized.reshape(1, 100, 100, 3)
+    resized = cv2.resize(face_img, (64, 64)) / 255.0
+    input_img = resized.reshape(1, 64, 64, 3)
     age_pred, gender_pred = gender_model.predict(input_img, verbose=0)
     age = int(np.round(age_pred[0][0]))
     age_range = f"{max(age - 3, 0)} - {age + 3}"
@@ -136,7 +136,6 @@ def predict_age(face_img):
 
 # [7. Hàm dự đoán giới tính] 
 def predict_gender(face_img):
-
     try: 
         if face_img.size == 0:
             return "Unknown"
