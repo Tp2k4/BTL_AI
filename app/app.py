@@ -1,4 +1,8 @@
 # [1. Khởi tạo: Load model, hàng đợi, Mediapipe và biến trạng thái] 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -11,7 +15,7 @@ from utils.select_image_file import select_image_file
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
-age_model = load_model("model/gender_model.keras", compile=False)
+age_model = load_model("model/eye_state_model.h5", compile=False)
 gender_model = load_model("model/gender_model.keras")
 
 # Queues
@@ -133,25 +137,29 @@ def predict_age(face_img):
 # [7. Hàm dự đoán giới tính] 
 def predict_gender(face_img):
 
-    # Thay đổi kích thước ảnh 'face_img' thành 100x100 pixels và chuẩn hóa giá trị pixel về khoảng [0, 1] bằng cách chia cho 255
-    resized = cv2.resize(face_img, (100, 100)) / 255.0
+    try: 
+        if face_img.size == 0:
+            return "Unknown"
+        # Thay đổi kích thước ảnh 'face_img' thành 64x64 pixels và chuẩn hóa giá trị pixel về khoảng [0, 1] bằng cách chia cho 255
+        resized = cv2.resize(face_img, (64, 64)) / 255.0
 
-    # Thay đổi hình dạng (reshape) của ảnh 'resized' thành một mảng 4 chiều với kích thước (1, 100, 100, 3)
-    # - 1 là kích thước batch (1 ảnh trong một batch)
-    # - 100x100 là chiều cao và chiều rộng của ảnh
-    # - 3 là số kênh màu (RGB)
-    input_img = resized.reshape(1, 100, 100, 3)
+        # Thay đổi hình dạng (reshape) của ảnh 'resized' thành một mảng 4 chiều với kích thước (1, 100, 100, 3)
+        # - 1 là kích thước batch (1 ảnh trong một batch)
+        # - 100x100 là chiều cao và chiều rộng của ảnh
+        # - 3 là số kênh màu (RGB)
+        input_img = resized.reshape(1, 64, 64, 3)
 
-    # verbose = 0, nghĩa là không in bất kỳ thông tin nào ra trong quá trình dự đoán
-    gender_pred = gender_model.predict(input_img, verbose=0)
-    probability = gender_pred[0][0]
-
-    if probability > 0.5:
-        gender = "Male"
-    else: 
-        gender = "Female"
-
-    return gender
+        # verbose = 0, nghĩa là không in bất kỳ thông tin nào ra trong quá trình dự đoán
+        gender_pred = gender_model.predict(input_img, verbose=0)
+        probability = gender_pred[0][0]
+        if probability > 0.5:
+            gender = "Male"
+        else: 
+            gender = "Female"
+        return gender
+    except Exception as e:
+        print(f"Lỗi dự đoán giới tính: {e}")
+        return "Unknown"
 
 
 def gender_predict_thread():
@@ -164,6 +172,8 @@ def gender_predict_thread():
             gender_result_queue.put(gender)
         except:
             gender_result_queue.put("Unknown")
+    
+    gender_result_queue.put(None)
 
 
 
