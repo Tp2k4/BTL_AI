@@ -10,7 +10,7 @@ import pyttsx3
 import threading, queue, time
 from tensorflow.keras.models import load_model
 from collections import deque
-from utils.select_image_file import select_image_file
+# from utils.select_image_file import select_image_file
 
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
