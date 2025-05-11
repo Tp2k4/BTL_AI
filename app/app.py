@@ -152,7 +152,7 @@ def predict_gender(face_img):
         # verbose = 0, nghĩa là không in bất kỳ thông tin nào ra trong quá trình dự đoán
         gender_pred = gender_model.predict(input_img, verbose=0)
         probability = gender_pred[0][0]
-        if probability > 0.5:
+        if probability < 0.5:
             gender = "Male"
         else: 
             gender = "Female"
@@ -276,3 +276,4 @@ speech_queue.put(None)
 eye_queue.put(None)
 emotion_queue.put(None)
 gender_queue.put(None)
+

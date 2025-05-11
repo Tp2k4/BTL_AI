@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from utils.process_gender_dataset import process_gender_dataset
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 #Lấy tập dữ liệu đã được xử lí
 X_train, X_test, y_train, y_test = process_gender_dataset()
@@ -41,11 +42,21 @@ def generate_model():
 # Huấn luyện mô hình
 model = generate_model()
 
+# Tạo callback để lưu mô hình tốt nhất (dựa trên val_accuracy)
+checkpoint = ModelCheckpoint(
+    filepath='model/best_gender_model.h5',
+    monitor='val_accuracy',
+    save_best_only=True,
+    mode='max',
+    verbose=1
+)
+
 history = model.fit(
     X_train, y_train,
     epochs=20,
     batch_size=32,
-    validation_data=(X_test, y_test)
+    validation_data=(X_test, y_test),
+    callbacks=[checkpoint]
 )
 
 # Đánh giá mô hình trên tập test

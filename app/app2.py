@@ -11,11 +11,14 @@ import numpy as np
 
 
 # Load model
-gender_model = load_model("model/gender_model.keras")
+gender_model = load_model("model/gender_model.h5")
+age_model = load_model("model/age_model.h5")
 
 # Tạo queue
 gender_queue = queue.Queue(maxsize=1)
 gender_result_queue = queue.Queue(maxsize=1)
+age_queue = queue.Queue(maxsize=1)
+age_result_queue = queue.Queue(maxsize=1)
 
 # Khởi tạo Face Mesh
 mp_face = mp.solutions.face_mesh
@@ -29,12 +32,16 @@ def predict_gender(face_img):
         resized = cv2.resize(face_img, (64, 64)) / 255.0
         input_img = resized.reshape(1, 64, 64, 3)
         gender_pred = gender_model.predict(input_img, verbose=0)
+
         probability = gender_pred[0][0]
-        if probability > 0.5:
+        print(f"Probability Female: {probability*100:.2f}%")
+        print(f"Probability Male: {(1 - probability)*100:.2f}%")
+        if probability < 0.5:
             gender = "Male"
         else: 
             gender = "Female"
         return gender
+    
     except Exception as e:
         print(f"Lỗi dự đoán giới tính: {e}")
         return "Unknown"
@@ -55,7 +62,47 @@ def gender_predict_thread():
 
 
 
+def predict_age(face_img):
+    try:
+        if face_img.size == 0:
+            return "Unknown"
+        resized = cv2.resize(face_img, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 3)
+        age_pred = age_model.predict(input_img, verbose=0)
+
+        predicted_age = age_pred[0][0]
+        # In 30 xác suất cao nhất
+        margin = 5  # Sai số dự kiến, bạn có thể điều chỉnh dựa trên MAE thực tế
+
+        age_min = max(0, int(predicted_age - margin))
+        age_max = int(predicted_age + margin)
+
+        print(f"Predicted age range: {age_min} - {age_max}")
+        return f"{age_min} - {age_max}"
+    
+    except Exception as e:
+        print(f"Lỗi dự đoán tuổi: {e}")
+        return "Unknown"
+
+
+
+def age_predict_thread():
+    while True:
+        face_img = age_queue.get()
+        if face_img is None:
+            break
+        try:
+            age = predict_age(face_img)
+            age_result_queue.put(age)
+        except Exception as e:
+            print(f"Lỗi trong thread dự đoán tuổi: {e}")
+            age_result_queue.put("Unknown")
+
+    age_result_queue.put(None)
+
+
 threading.Thread(target=gender_predict_thread, daemon=True).start()
+threading.Thread(target=age_predict_thread, daemon=True).start()
 
 
 img_path = select_image_file()
@@ -86,12 +133,18 @@ if result.multi_face_landmarks:
         if face_crop.size == 0:
             continue
 
-        # Gửi ảnh vào queue và chờ kết quả
+        # Gửi ảnh vào 2 queue riêng biệt
         gender_queue.put(face_crop)
+        age_queue.put(face_crop)
+
+        # Lấy kết quả dự đoán từ 2 queue kết quả
         gender = gender_result_queue.get()
+        age = age_result_queue.get()
+
 
          # Hiển thị kết quả
-        cv2.putText(image, f"Gender: {gender}", (x_min, y_min - 10),
+        label = f"Gender: {gender}, Age: {age}"
+        cv2.putText(image, label, (x_min, y_min - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
         cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (255, 0, 255), 2)
 
@@ -99,7 +152,10 @@ if result.multi_face_landmarks:
 
 # Gửi tín hiệu kết thúc và chờ worker thread dừng
 gender_queue.put(None)
-gender_result_queue.get()  # Đợi xác nhận dừng từ worker
+gender_result_queue.get()  
+
+age_queue.put(None)
+age_result_queue.get()
 
 # Hiển thị ảnh kết quả
 cv2.imshow("Gender Detection", image)
