@@ -5,8 +5,7 @@ import cv2
 
 def process_gender_dataset():
 
-    # Đường dẫn tới thư mục chứa ảnh UTKFace (đã giải nén)
-    data_dir = 'dataset/gender'  # Thay bằng đường dẫn thực tế
+    data_dir = 'dataset/gender' 
 
     # Danh sách để chứa ảnh và nhãn
     images = []

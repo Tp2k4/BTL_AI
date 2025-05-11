@@ -6,12 +6,13 @@ import pyttsx3
 import threading, queue, time
 from tensorflow.keras.models import load_model
 from collections import deque
+from utils.select_image_file import select_image_file
 
 # Load models
 eye_model = load_model("model/eye_state_model.h5")
 emotion_model = load_model("model/emotion_model.keras")
-age_model = load_model("model/age_model.keras")
-gender_model = load_model("model/age_gender_model.h5", compile=False)
+age_model = load_model("model/eye_state.keras", compile=False)
+gender_model = load_model("model/gender_model.keras")
 
 # Queues
 eye_queue = queue.Queue(maxsize=2)
@@ -23,7 +24,9 @@ gender_queue = queue.Queue(maxsize=1)
 gender_result_queue = queue.Queue(maxsize=1)
 
 # Mediapipe
+# Trả về một module có chứa các lớp và hàm liên quan đến việc xử lý khuôn mặt
 mp_face = mp.solutions.face_mesh
+# trả về một đối tượng có thể được sử dụng để nhận diện và phân tích các đặc điểm khuôn mặt
 face_mesh = mp_face.FaceMesh(static_image_mode=False, max_num_faces=1)
 
 # Trạng thái
@@ -36,6 +39,7 @@ current_gender = None
 
 last_eye_state_change = time.time()
 eye_state_interval = 1.0  # giây
+
 
 # [2. Luồng phát âm bằng pyttsx3] 
 def speech_loop():
@@ -128,10 +132,25 @@ def predict_age(face_img):
 
 # [7. Hàm dự đoán giới tính] 
 def predict_gender(face_img):
+
+    # Thay đổi kích thước ảnh 'face_img' thành 100x100 pixels và chuẩn hóa giá trị pixel về khoảng [0, 1] bằng cách chia cho 255
     resized = cv2.resize(face_img, (100, 100)) / 255.0
+
+    # Thay đổi hình dạng (reshape) của ảnh 'resized' thành một mảng 4 chiều với kích thước (1, 100, 100, 3)
+    # - 1 là kích thước batch (1 ảnh trong một batch)
+    # - 100x100 là chiều cao và chiều rộng của ảnh
+    # - 3 là số kênh màu (RGB)
     input_img = resized.reshape(1, 100, 100, 3)
+
+    # verbose = 0, nghĩa là không in bất kỳ thông tin nào ra trong quá trình dự đoán
     gender_pred = gender_model.predict(input_img, verbose=0)
-    gender = "Male" if gender_pred[0][0] > 0.5 else "Female"
+    probability = gender_pred[0][0]
+
+    if probability > 0.5:
+        gender = "Male"
+    else: 
+        gender = "Female"
+
     return gender
 
 
@@ -215,9 +234,6 @@ while True:
                 if not gender_queue.full():
                     gender_queue.put(face_crop)
 
-                
-
-
     # [10. Nhận kết quả và cập nhật trạng thái hệ thống] 
     handle_eye_state()  # Chỉ gọi hàm đã tối ưu
 
@@ -236,8 +252,12 @@ while True:
 
     cv2.imshow("Eye + Emotion + Age + Gender", frame)
 
+    # Nhấn 'q' để thoát khỏi chương trình
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+# Đã thoát khỏi While
+
 
 # [12. Dọn dẹp tài nguyên] 
 cap.release()
