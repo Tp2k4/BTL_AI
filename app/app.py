@@ -132,8 +132,8 @@ def predict_age(face_img):
     try:
         if face_img.size == 0:
             return "Unknown"
-        resized = cv2.resize(face_img, (128, 128)) / 255.0
-        input_img = resized.reshape(1, 128, 128, 3)
+        resized = cv2.resize(face_img, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 3)
         age_pred = age_model.predict(input_img, verbose=0)
 
         predicted_age = age_pred[0][0]
