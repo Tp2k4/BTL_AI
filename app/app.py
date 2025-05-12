@@ -13,7 +13,7 @@ from collections import deque
 # from utils.select_image_file import select_image_file
 
 # Load models
-eye_model = load_model("model/eye_state_model.h5")
+eye_model = load_model("model/eye_state_model_4.h5")
 emotion_model = load_model("model/emotion_model.keras")
 age_model = load_model("model/age_model.h5", compile=False)
 gender_model = load_model("model/gender_model.h5")
@@ -44,7 +44,7 @@ current_age = None
 current_gender = None
 
 last_eye_state_change = time.time()
-eye_state_interval = 1.0  # giây
+eye_state_interval = 0.5   # giây
 
 
 # [2. Luồng phát âm bằng pyttsx3] 
@@ -132,6 +132,7 @@ def predict_age(face_img):
     try:
         if face_img.size == 0:
             return "Unknown"
+        
         resized = cv2.resize(face_img, (64, 64)) / 255.0
         input_img = resized.reshape(1, 64, 64, 3)
         age_pred = age_model.predict(input_img, verbose=0)
@@ -280,7 +281,7 @@ while True:
                     gender_queue.put(face_crop)
 
     # [10. Nhận kết quả và cập nhật trạng thái hệ thống] 
-    handle_eye_state()  # Chỉ gọi hàm đã tối ưu
+    handle_eye_state()
 
     if not emotion_result_queue.empty():
         current_emotion = emotion_result_queue.get()
