@@ -44,7 +44,7 @@ current_age = None
 current_gender = None
 
 last_eye_state_change = time.time()
-eye_state_interval = 0.5   # giây
+eye_state_interval = 0.5   
 
 
 # [2. Luồng phát âm bằng pyttsx3] 
@@ -132,9 +132,9 @@ def predict_age(face_img):
     try:
         if face_img.size == 0:
             return "Unknown"
-        
-        resized = cv2.resize(face_img, (64, 64)) / 255.0
-        input_img = resized.reshape(1, 64, 64, 3)
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 1)
         age_pred = age_model.predict(input_img, verbose=0)
 
         predicted_age = age_pred[0][0]
@@ -151,6 +151,7 @@ def predict_age(face_img):
     except Exception as e:
         print(f"Lỗi dự đoán tuổi: {e}")
         return "Unknown"
+
     
 
 def age_predict_thread():
@@ -174,23 +175,20 @@ def predict_gender(face_img):
     try: 
         if face_img.size == 0:
             return "Unknown"
-        # Thay đổi kích thước ảnh 'face_img' thành 64x64 pixels và chuẩn hóa giá trị pixel về khoảng [0, 1] bằng cách chia cho 255
-        resized = cv2.resize(face_img, (64, 64)) / 255.0
-
-        # Thay đổi hình dạng (reshape) của ảnh 'resized' thành một mảng 4 chiều với kích thước (1, 100, 100, 3)
-        # - 1 là kích thước batch (1 ảnh trong một batch)
-        # - 100x100 là chiều cao và chiều rộng của ảnh
-        # - 3 là số kênh màu (RGB)
-        input_img = resized.reshape(1, 64, 64, 3)
-
-        # verbose = 0, nghĩa là không in bất kỳ thông tin nào ra trong quá trình dự đoán
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 1)
         gender_pred = gender_model.predict(input_img, verbose=0)
+
         probability = gender_pred[0][0]
+        print(f"Probability Female: {probability*100:.2f}%")
+        print(f"Probability Male: {(1 - probability)*100:.2f}%")
         if probability < 0.5:
             gender = "Male"
         else: 
             gender = "Female"
         return gender
+    
     except Exception as e:
         print(f"Lỗi dự đoán giới tính: {e}")
         return "Unknown"
