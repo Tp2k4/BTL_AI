@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from tensorflow.keras.models import load_model
 from utils.select_image_file import select_image_file
+from utils.crop_face import crop_face
 import threading, queue
 import cv2
 import mediapipe as mp
@@ -66,8 +67,9 @@ def predict_age(face_img):
     try:
         if face_img.size == 0:
             return "Unknown"
-        resized = cv2.resize(face_img, (64, 64)) / 255.0
-        input_img = resized.reshape(1, 64, 64, 3)
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 1)
         age_pred = age_model.predict(input_img, verbose=0)
 
         predicted_age = age_pred[0][0]
@@ -116,39 +118,26 @@ if image is None:
     print("Không đọc được ảnh.")
     exit(0)
 
-ih, iw, _ = image.shape
-rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-result = face_mesh.process(rgb)
+result = crop_face(image)
+if result is not None:
+    face_crop, x_min, x_max, y_min, y_max = result
+    
+    # Gửi ảnh vào 2 queue riêng biệt
+    gender_queue.put(face_crop)
+    age_queue.put(face_crop)
 
-if result.multi_face_landmarks:
-    for face_landmarks in result.multi_face_landmarks:
-
-        # Tính toán vùng khuôn mặt
-        x_coords = [int(pt.x * iw) for pt in face_landmarks.landmark]
-        y_coords = [int(pt.y * ih) for pt in face_landmarks.landmark]
-        x_min, x_max = min(x_coords), max(x_coords)
-        y_min, y_max = min(y_coords), max(y_coords)
-
-        face_crop = image[y_min:y_max, x_min:x_max]
-
-        if face_crop.size == 0:
-            continue
-
-        # Gửi ảnh vào 2 queue riêng biệt
-        gender_queue.put(face_crop)
-        age_queue.put(face_crop)
-
-        # Lấy kết quả dự đoán từ 2 queue kết quả
-        gender = gender_result_queue.get()
-        age = age_result_queue.get()
+    # Lấy kết quả dự đoán từ 2 queue kết quả
+    gender = gender_result_queue.get()
+    age = age_result_queue.get()
 
 
-         # Hiển thị kết quả
-        label = f"Gender: {gender}, Age: {age}"
-        cv2.putText(image, label, (x_min, y_min - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
-        cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (255, 0, 255), 2)
-
+    # Hiển thị kết quả
+    label = f"Gender: {gender}, Age: {age}"
+    cv2.putText(image, label, (x_min, y_min - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 255), 2)
+    cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (255, 0, 255), 2)
+else:
+    print("Lỗi không phát hiện được khuôn mặt")
  
 
 # Gửi tín hiệu kết thúc và chờ worker thread dừng

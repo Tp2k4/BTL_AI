@@ -1,10 +1,16 @@
+import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from sklearn.model_selection import train_test_split
 import numpy as np
 import cv2
+from utils.crop_face import crop_face
+import matplotlib.pyplot as plt 
+
 
 def process_age_dataset():
-    data_dir = 'dataset/gender'  
+    data_dir = "dataset/gender"  
 
     images = []
     ages = []
@@ -25,16 +31,34 @@ def process_age_dataset():
         except ValueError:
             continue
 
-        # Xử lý ảnh
+        # Lấy ảnh
         img_path = os.path.join(data_dir, filename)
         img = cv2.imread(img_path)
         if img is None:
+            print("lỗi")
             continue
+        else: 
+            print("thành công")
+        
+        #Cắt mặt
+        result = crop_face(img)
+        if result is not None:
+            cropped_face = result[0]
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (64, 64))
+        if cropped_face is None:
+            print("lỗi")
+            continue
+        else: 
+            print("thành công")
 
-        images.append(img)
+        # Chuyển ảnh sang grayscale
+        img_gray = cv2.cvtColor(cropped_face, cv2.COLOR_BGR2GRAY)
+
+        # Thêm chiều cho ảnh để có dạng (64, 64, 1)
+        img_gray = np.expand_dims(img_gray, axis=-1)
+
+        # thêm vào tập X_train và y_train
+        images.append(img_gray)
         ages.append(age)
 
     # Chuẩn hóa dữ liệu
@@ -54,3 +78,6 @@ def process_age_dataset():
     print(f'Phân bố tuổi - Min:{y.min()}, Max:{y.max()}, Mean:{y.mean():.1f}')
 
     return X_train, X_test, y_train, y_test
+
+
+
