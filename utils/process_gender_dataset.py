@@ -1,7 +1,12 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import os
 from sklearn.model_selection import train_test_split
 import numpy as np
 import cv2
+from utils.crop_face import crop_face
 
 def process_gender_dataset():
 
@@ -26,14 +31,29 @@ def process_gender_dataset():
         img_path = os.path.join(data_dir, filename)
         img = cv2.imread(img_path)
         if img is None:
+            print("lỗi")
             continue
+        else: 
+            print("thành công")
 
-        # Chuyển đổi ảnh từ BGR (OpenCV) sang RGB
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # Resize ảnh về kích thước 64x64
-        img = cv2.resize(img, (64, 64))
+        #Cắt mặt
+        result = crop_face(img)
+        if result is not None:
+            cropped_face = result[0]
 
-        images.append(img)
+        if cropped_face is None:
+            print("lỗi")
+            continue
+        else: 
+            print("thành công")
+
+        # Chuyển ảnh sang grayscale
+        img_gray = cv2.cvtColor(cropped_face, cv2.COLOR_BGR2GRAY)
+
+        # Thêm chiều cho ảnh để có dạng (64, 64, 1)
+        img_gray = np.expand_dims(img_gray, axis=-1)
+
+        images.append(img_gray)
         labels.append(gender)
 
 

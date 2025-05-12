@@ -15,57 +15,13 @@ X_train, X_test, y_train, y_test = process_age_dataset()
 MAX_AGE = 116.0
 y_train_normalize = y_train / MAX_AGE
 y_test_normalize = y_test / MAX_AGE
-    
-
-def generate_model1():
-    model = Sequential()
-
-    # Block 1: 32 filters
-    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', 
-                     input_shape=(128, 128, 3), 
-                     kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-
-    # Block 2: 64 filters
-    model.add(Conv2D(64, (3, 3), activation='relu', padding='same', 
-                     kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-
-    # Block 3: 128 filters
-    model.add(Conv2D(128, (3, 3), activation='relu', padding='same', 
-                     kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-
-    # Block 4: 256 filters
-    model.add(Conv2D(256, (3, 3), activation='relu', padding='same', 
-                     kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-
-    # Block 5: 512 filters
-    model.add(Conv2D(512, (3, 3), activation='relu', padding='same', 
-                     kernel_regularizer=regularizers.l2(0.01)))
-    model.add(BatchNormalization())
-    model.add(MaxPooling2D((2, 2)))
-
-
-    model.add(GlobalAveragePooling2D())
-    model.add(Dense(512, activation='relu', kernel_regularizer=regularizers.l2(0.01)))
-    model.add(Dropout(0.6))
-    model.add(Dense(1, activation='linear')) 
-
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
-    return model
 
 
 def generate_model():
     model = Sequential()
 
     # Lớp tích chập đầu tiên: 32 filters, kernel 3x3, activation ReLU, padding 'same'
-    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(64, 64, 3)))
+    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(64, 64, 1)))
     model.add(BatchNormalization())  # BatchNormalization
     model.add(MaxPooling2D((2, 2)))
 
@@ -105,9 +61,9 @@ model.fit(
 )
 
 # Đánh giá mô hình trên tập test
-mse, mae = model.evaluate(X_test, y_test_normalize)
-print(f'MAE: {mae * MAX_AGE:.2f}')
-print(f'MSE: {mse * (MAX_AGE ** 2):.2f}')
+mae_loss, mae_accuracy = model.evaluate(X_test, y_test_normalize)
+print(f'MAE: {mae_accuracy * MAX_AGE:.2f}')
+print(f'MSE: {mae_accuracy * MAX_AGE:.2f}')
 
 # Lưu mô hình dự đoán tuổi
 model.save("model/age_model.h5")
