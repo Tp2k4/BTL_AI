@@ -30,8 +30,9 @@ def predict_gender(face_img):
     try: 
         if face_img.size == 0:
             return "Unknown"
-        resized = cv2.resize(face_img, (64, 64)) / 255.0
-        input_img = resized.reshape(1, 64, 64, 3)
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (64, 64)) / 255.0
+        input_img = resized.reshape(1, 64, 64, 1)
         gender_pred = gender_model.predict(input_img, verbose=0)
 
         probability = gender_pred[0][0]

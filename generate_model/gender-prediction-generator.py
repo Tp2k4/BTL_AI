@@ -16,7 +16,7 @@ def generate_model():
     model = Sequential()
 
     # Lớp tích chập đầu tiên: 32 filters, kernel 3x3, activation ReLU, padding 'same'
-    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(64, 64, 3)))
+    model.add(Conv2D(32, (3, 3), activation='relu', padding='same', input_shape=(64, 64, 1)))
     model.add(MaxPooling2D((2, 2)))  # Lớp pooling 2x2
 
     # Lớp tích chập thứ hai: 64 filters, kernel 3x3
