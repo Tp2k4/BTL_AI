@@ -62,8 +62,8 @@ model.fit(
 
 # Đánh giá mô hình trên tập test
 mae_loss, mae_accuracy = model.evaluate(X_test, y_test_normalize)
+print(f'MAE: {mae_loss * MAX_AGE:.2f}')
 print(f'MAE: {mae_accuracy * MAX_AGE:.2f}')
-print(f'MSE: {mae_accuracy * MAX_AGE:.2f}')
 
 # Lưu mô hình dự đoán tuổi
 model.save("model/age_model.h5")
